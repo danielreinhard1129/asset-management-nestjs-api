@@ -1,0 +1,100 @@
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  firstName    String
+  lastName     String
+  email        String     @unique
+  password     String
+  role         Role
+  department   Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  deletedAt    DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  assignments AssetAssignment[] @relation("UserAssignments")
+  grants      AssetAssignment[] @relation("UserGrants")
+
+  @@map("users")
+}
+
+enum Role {
+  SUPER_ADMIN
+  EMPLOYEE
+  CUSTOMER
+}
+
+model Department {
+  id        Int       @id @default(autoincrement())
+  name      String
+  address   String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  users User[]
+
+  @@map("departments")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  type      String
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  assets    Asset[]
+
+  @@map("categories")
+}
+
+model Asset {
+  id            Int       @id @default(autoincrement())
+  name          String
+  tag           String    @unique
+  serial        String    @unique
+  purchaseDate  DateTime
+  purchasePrice Decimal
+  status        Status    @default(AVAILABLE)
+  image         String
+  category      Category  @relation(fields: [categoryId], references: [id])
+  categoryId    Int
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("assets")
+}
+
+enum Status {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+  MISSING
+  BROKEN
+}
+
+model AssetAssignment {
+  id             Int       @id @default(autoincrement())
+  user           User      @relation("UserAssignments", fields: [userId], references: [id])
+  userId         Int
+  assetId        Int
+  grantedBy      User      @relation("UserGrants", fields: [grantedbyId], references: [id])
+  grantedbyId    Int
+  assignmentDate DateTime  @default(now())
+  returnDate     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@map("asset_assignments")
+}
