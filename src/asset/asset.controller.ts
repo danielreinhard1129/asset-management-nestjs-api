@@ -41,7 +41,7 @@ export class AssetController {
 
   @UseInterceptors(FileFieldsInterceptor([{ name: 'assetPhoto', maxCount: 1 }]))
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN', 'EMPLOYEE')
+  @Roles('SUPER_ADMIN')
   @Post('/')
   async createAsset(
     @Body() createAssetDto: CreateAssetDTO,
@@ -61,6 +61,8 @@ export class AssetController {
   }
 
   @UseInterceptors(FileFieldsInterceptor([{ name: 'assetPhoto', maxCount: 1 }]))
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN')
   @Patch('/:id')
   async updateAsset(
     @Param('id') id: number,
@@ -80,6 +82,8 @@ export class AssetController {
     return await this.assetService.updateAsset(id, updateAssetDto, assetPhoto);
   }
 
+  @UseGuards(RolesGuard)
+  @Roles('SUPER_ADMIN')
   @Delete('/:id')
   async deleteAsset(@Param('id') id: number) {
     await this.assetService.deleteAsset(id);
