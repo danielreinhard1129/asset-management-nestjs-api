@@ -29,12 +29,12 @@ export class AuthService {
     const isPasswordValid = await compare(loginDto.password, password);
 
     if (!isPasswordValid) {
-      throw new ForbiddenException('Invalid credentialsss');
+      throw new ForbiddenException('Invalid credentials');
     }
 
     const accessToken = this.jwtService.sign(
       { id: user.id, role: user.role },
-      { secret: config.accessTokenSecret },
+      { secret: config.accessTokenSecret, expiresIn: config.accessTokenExpiry },
     );
 
     return { ...userWithoutPassword, accessToken };
