@@ -20,16 +20,22 @@ model User {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  assignments AssetAssignment[] @relation("UserAssignments")
-  grants      AssetAssignment[] @relation("UserGrants")
+  assetHistories      AssetHistory[] @relation("User")
+  adminAssetHistories AssetHistory[] @relation("Admin")
+  hrBast              Bast[]         @relation("HR")
+  adminBast           Bast[]         @relation("Admin")
+
+  assetReturned AssetReturned[]
+  assets        Asset[]
+  assetRequests AssetRequest[]
 
   @@map("users")
 }
 
 enum Role {
-  SUPER_ADMIN
-  EMPLOYEE
-  CUSTOMER
+  ADMIN
+  HR
+  USER
 }
 
 model Department {
@@ -46,13 +52,14 @@ model Department {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  type      String
-  deletedAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  assets    Asset[]
+  id                Int                @id @default(autoincrement())
+  name              String             @unique
+  image             String
+  deletedAt         DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  assets            Asset[]
+  assetRequestItems AssetRequestItem[]
 
   @@map("categories")
 }
@@ -66,17 +73,23 @@ model Asset {
   purchasePrice Decimal
   status        Status    @default(AVAILABLE)
   image         String
-  category      Category  @relation(fields: [categoryId], references: [id])
   categoryId    Int
+  userId        Int?
   deletedAt     DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+
+  category       Category       @relation(fields: [categoryId], references: [id])
+  user           User?          @relation(fields: [userId], references: [id])
+  assetHistories AssetHistory[]
+  bastItems      BastItem[]
 
   @@map("assets")
 }
 
 enum Status {
   AVAILABLE
+  IN_PROGRESS
   IN_USE
   MAINTENANCE
   RETIRED
@@ -84,17 +97,126 @@ enum Status {
   BROKEN
 }
 
-model AssetAssignment {
-  id             Int       @id @default(autoincrement())
-  user           User      @relation("UserAssignments", fields: [userId], references: [id])
-  userId         Int
-  assetId        Int
-  grantedBy      User      @relation("UserGrants", fields: [grantedbyId], references: [id])
-  grantedbyId    Int
-  assignmentDate DateTime  @default(now())
-  returnDate     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+model AssetHistory {
+  id        Int      @id @default(autoincrement())
+  assetId   Int
+  userId    Int?
+  adminId   Int
+  type      Type
+  notes     String?  @db.LongText()
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@map("asset_assignments")
+  asset Asset @relation(fields: [assetId], references: [id])
+  user  User? @relation("User", fields: [userId], references: [id])
+  admin User  @relation("Admin", fields: [adminId], references: [id])
+
+  @@map("asset_histories")
+}
+
+enum Type {
+  CHECKOUT
+  CREATE
+  UPDATE
+  OTHER
+}
+
+model Bast {
+  id               Int      @id @default(autoincrement())
+  bastNo           String   @unique @db.VarChar(20)
+  type             TypeBast
+  isCheckedByAdmin Boolean  @default(false)
+  isCheckedByUser  Boolean  @default(false)
+  hrId             Int?
+  adminId          Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  hr            User?           @relation("HR", fields: [hrId], references: [id])
+  admin         User?           @relation("Admin", fields: [adminId], references: [id])
+  assetRequests AssetRequest[]
+  bastItems     BastItem[]
+  assetReturned AssetReturned[]
+
+  @@map("bast")
+}
+
+enum TypeBast {
+  REQUEST
+  RETURN
+}
+
+model BastItem {
+  id        Int      @id @default(autoincrement())
+  bastId    Int
+  assetId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  bast  Bast  @relation(fields: [bastId], references: [id])
+  asset Asset @relation(fields: [assetId], references: [id])
+
+  @@map("bast_items")
+}
+
+model AssetRequest {
+  id           Int                @id @default(autoincrement())
+  userId       Int
+  bastId       Int
+  status       StatusAssetRequest
+  assignToUser String?
+  notes        String?            @db.LongText()
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  user              User               @relation(fields: [userId], references: [id])
+  bast              Bast               @relation(fields: [bastId], references: [id])
+  assetRequestItems AssetRequestItem[]
+
+  @@map("asset_requests")
+}
+
+enum StatusAssetRequest {
+  PENDING
+  IN_PROGRESS
+  APPROVE
+  REJECT
+  CLAIMED
+}
+
+model AssetRequestItem {
+  id             Int      @id @default(autoincrement())
+  assetRequestId Int
+  categoryId     Int
+  qty            Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  assetRequest AssetRequest @relation(fields: [assetRequestId], references: [id])
+  category     Category     @relation(fields: [categoryId], references: [id])
+
+  @@map("asset_request_items")
+}
+
+model AssetReturned {
+  id        Int                 @id @default(autoincrement())
+  userId    Int
+  bastId    Int
+  status    StatusAssetReturned
+  notes     String?             @db.LongText()
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  bast Bast @relation(fields: [bastId], references: [id])
+
+  @@map("asset_returned")
+}
+
+enum StatusAssetReturned {
+  PENDING
+  IN_PROGRESS
+  APPROVE // TODO: remove status approve
+  REJECT
+  DONE
 }

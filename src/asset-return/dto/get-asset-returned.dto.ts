@@ -1,18 +1,18 @@
-import { Status } from '@prisma/client';
+import { StatusAssetReturned } from '@prisma/client';
 import { Transform } from 'class-transformer';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryParams } from 'src/pagination/dto/pagination.dto';
 
-export class GetAssetsDTO extends PaginationQueryParams {
+export class GetAssetReturnedDTO extends PaginationQueryParams {
   @IsOptional()
   @IsString()
   readonly search?: string;
 
   @IsOptional()
-  @IsEnum(Status)
-  readonly status?: Status;
+  @IsEnum(StatusAssetReturned)
+  readonly status?: StatusAssetReturned;
 
   @Transform(({ value }) => value === 'true')
   @IsOptional()
-  readonly myAsset?: boolean;
+  readonly myReturn?: boolean;
 }

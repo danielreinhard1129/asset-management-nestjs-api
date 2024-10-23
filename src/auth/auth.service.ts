@@ -17,7 +17,7 @@ export class AuthService {
   async login(loginDto: LoginDTO) {
     const user = await this.prisma.user.findUnique({
       where: { email: loginDto.email },
-      include: { department: { select: { name: true } } },
+      include: { department: { select: { name: true, address: true } } },
     });
 
     if (!user) {
@@ -51,7 +51,10 @@ export class AuthService {
       throw new ForbiddenException('Email already exist');
     }
 
-    const hashedPassword = await hash(registerDto.password, config.saltRounds);
+    const hashedPassword = await hash(
+      registerDto.password,
+      Number(config.saltRounds),
+    );
 
     return await this.prisma.user.create({
       data: {

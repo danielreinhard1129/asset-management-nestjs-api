@@ -14,8 +14,10 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { Roles } from 'src/auth/decorator/role.decorator';
+import { User } from 'src/auth/decorator/user.decorator';
 import { AuthGuard } from 'src/auth/guard/auth.guard';
 import { RolesGuard } from 'src/auth/guard/role.guard';
+import { PayloadToken } from 'src/auth/types';
 import { RequiredFilePipe } from 'src/cloudinary/pipes/required-file.pipe';
 import { FileTypeValidator } from 'src/cloudinary/validators/file-type.validator';
 import { MaxFileSizeValidator } from 'src/cloudinary/validators/max-file-size.validator';
@@ -29,9 +31,11 @@ import { UpdateAssetDTO } from './dto/update-asset.dto';
 export class AssetController {
   constructor(private readonly assetService: AssetService) {}
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('USER', 'ADMIN')
   @Get('/')
-  async getAssets(@Query() query: GetAssetsDTO) {
-    return this.assetService.getAssets(query);
+  async getAssets(@User() user: PayloadToken, @Query() query: GetAssetsDTO) {
+    return this.assetService.getAssets(query, Number(user.id));
   }
 
   @Get('/:id')
@@ -41,9 +45,10 @@ export class AssetController {
 
   @UseInterceptors(FileFieldsInterceptor([{ name: 'assetPhoto', maxCount: 1 }]))
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @Roles('ADMIN')
   @Post('/')
   async createAsset(
+    @User() user: PayloadToken,
     @Body() createAssetDto: CreateAssetDTO,
     @UploadedFiles(
       new RequiredFilePipe({ assetPhoto: 1 }),
@@ -57,16 +62,21 @@ export class AssetController {
     )
     files: { assetPhoto: Express.Multer.File[] },
   ) {
-    return this.assetService.createAsset(createAssetDto, files.assetPhoto[0]);
+    return this.assetService.createAsset(
+      user,
+      createAssetDto,
+      files.assetPhoto[0],
+    );
   }
 
   @UseInterceptors(FileFieldsInterceptor([{ name: 'assetPhoto', maxCount: 1 }]))
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @Roles('ADMIN')
   @Patch('/:id')
   async updateAsset(
     @Param('id') id: number,
     @Body() updateAssetDto: UpdateAssetDTO,
+    @User() user: PayloadToken,
     @UploadedFiles(
       new ParseFilePipe({
         fileIsRequired: false,
@@ -79,11 +89,16 @@ export class AssetController {
     files: { assetPhoto: Express.Multer.File[] },
   ) {
     const assetPhoto = files?.assetPhoto?.[0];
-    return await this.assetService.updateAsset(id, updateAssetDto, assetPhoto);
+    return await this.assetService.updateAsset(
+      id,
+      updateAssetDto,
+      user,
+      assetPhoto,
+    );
   }
 
   @UseGuards(RolesGuard)
-  @Roles('SUPER_ADMIN')
+  @Roles('ADMIN')
   @Delete('/:id')
   async deleteAsset(@Param('id') id: number) {
     await this.assetService.deleteAsset(id);

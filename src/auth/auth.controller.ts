@@ -1,10 +1,10 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDTO } from './dto/login.dto';
 import { RegisterDTO } from './dto/register.dto';
-import { AuthGuard } from './guard/auth.guard';
-import { RolesGuard } from './guard/role.guard';
-import { Roles } from './decorator/role.decorator';
+// import { AuthGuard } from './guard/auth.guard';
+// import { RolesGuard } from './guard/role.guard';
+// import { Roles } from './decorator/role.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -15,8 +15,8 @@ export class AuthController {
     return this.authService.login(loginDto);
   }
 
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles('SUPER_ADMIN')
+  // @UseGuards(AuthGuard, RolesGuard)
+  // @Roles('ADMIN')
   @Post('register')
   async register(@Body() registerDto: RegisterDTO) {
     return this.authService.register(registerDto);

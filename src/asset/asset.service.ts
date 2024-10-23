@@ -1,5 +1,6 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { PayloadToken } from 'src/auth/types';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PaginationService } from 'src/pagination/pagination.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -15,8 +16,9 @@ export class AssetService {
     private readonly paginationService: PaginationService,
   ) {}
 
-  async getAssets(getAssetsDto: GetAssetsDTO) {
-    const { page, sortBy, sortOrder, take, search } = getAssetsDto;
+  async getAssets(getAssetsDto: GetAssetsDTO, userId: number) {
+    const { page, sortBy, sortOrder, take, all, search, status, myAsset } =
+      getAssetsDto;
 
     const whereClause: Prisma.AssetWhereInput = {
       deletedAt: null,
@@ -31,15 +33,31 @@ export class AssetService {
       ];
     }
 
+    if (status) {
+      whereClause.status = { equals: status };
+    }
+
+    if (myAsset) {
+      whereClause.userId = { equals: userId };
+    }
+
+    let paginationArgs: Prisma.AssetFindManyArgs = {};
+
+    if (!all) {
+      paginationArgs = {
+        skip: (page - 1) * take,
+        take,
+      };
+    }
+
     const [assets, count] = await this.prisma.$transaction([
       this.prisma.asset.findMany({
         where: whereClause,
-        skip: (page - 1) * take,
-        take,
         orderBy: {
           [sortBy]: sortOrder,
         },
         include: { category: { select: { name: true } } },
+        ...paginationArgs,
       }),
 
       this.prisma.asset.count({ where: whereClause }),
@@ -54,11 +72,15 @@ export class AssetService {
   async getAsset(id: number) {
     return await this.prisma.asset.findFirstOrThrow({
       where: { id },
-      include: { category: { select: { name: true } } },
+      include: {
+        category: { select: { name: true } },
+        user: { select: { firstName: true, lastName: true } },
+      },
     });
   }
 
   async createAsset(
+    user: PayloadToken,
     createAssetDto: CreateAssetDTO,
     assetPhoto: Express.Multer.File,
   ) {
@@ -91,23 +113,36 @@ export class AssetService {
 
     const { secure_url } = await this.cloudinaryService.uploadFile(assetPhoto);
 
-    return await this.prisma.asset.create({
-      data: {
-        name,
-        image: secure_url,
-        purchaseDate,
-        purchasePrice,
-        serial,
-        tag,
-        categoryId,
-        status,
-      },
+    return this.prisma.$transaction(async (tx) => {
+      const newAsset = await tx.asset.create({
+        data: {
+          name,
+          image: secure_url,
+          purchaseDate,
+          purchasePrice,
+          serial,
+          tag,
+          categoryId,
+          status,
+        },
+      });
+
+      await tx.assetHistory.create({
+        data: {
+          type: 'CREATE',
+          assetId: newAsset.id,
+          adminId: user.id,
+        },
+      });
+
+      return newAsset;
     });
   }
 
   async updateAsset(
     id: number,
     updateAssetDto: UpdateAssetDTO,
+    user: PayloadToken,
     assetPhoto?: Express.Multer.File,
   ) {
     const { image } = await this.prisma.asset.findFirstOrThrow({
@@ -127,9 +162,21 @@ export class AssetService {
       updatedData = { ...updateAssetDto, image: secure_url };
     }
 
-    return await this.prisma.asset.update({
-      where: { id },
-      data: updatedData,
+    return this.prisma.$transaction(async (tx) => {
+      const updatedAsset = await this.prisma.asset.update({
+        where: { id },
+        data: updatedData,
+      });
+
+      await tx.assetHistory.create({
+        data: {
+          type: 'UPDATE',
+          assetId: updatedAsset.id,
+          adminId: user.id,
+        },
+      });
+
+      return updatedAsset;
     });
   }
 
