@@ -32,6 +32,8 @@ export class AssetRequestController {
     return this.assetRequestService.getAssetRequests(query, user);
   }
 
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('USER', 'ADMIN', 'HR')
   @Get('/:id')
   async getAssetRequest(@Param('id') id: number) {
     return this.assetRequestService.getAssetRequest(id);

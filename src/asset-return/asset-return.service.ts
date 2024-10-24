@@ -57,6 +57,15 @@ export class AssetReturnService {
     };
   }
 
+  async getAssetReturn(id: number) {
+    return this.prisma.assetReturned.findFirstOrThrow({
+      where: { id },
+      include: {
+        bast: { include: { bastItems: { include: { asset: true } } } },
+      },
+    });
+  }
+
   async createAssetReturned(dto: CreateAssetReturnDTO, userId: number) {
     const assetIds = dto.items.map((item) => item.assetId);
 
@@ -230,14 +239,6 @@ export class AssetReturnService {
       where: { id },
       include: { bast: true },
     });
-
-    // const canReject =
-    //   (user.role === 'HR' && !bast.hrId && status === 'PENDING') ||
-    //   (user.role === 'ADMIN' && !bast.adminId && bast.hrId);
-
-    // if (!canReject) {
-    //   throw new UnprocessableEntityException('Cannot reject asset return');
-    // }
 
     if (['DONE', 'REJECT'].includes(status)) {
       throw new UnprocessableEntityException('Asset return already finished');

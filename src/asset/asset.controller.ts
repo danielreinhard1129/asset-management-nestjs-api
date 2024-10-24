@@ -55,7 +55,7 @@ export class AssetController {
       new ParseFilePipe({
         fileIsRequired: true,
         validators: [
-          new FileTypeValidator({ fileType: /\/(jpg|jpeg|png)$/ }),
+          new FileTypeValidator({ fileType: /\/(jpg|jpeg|png|avif)$/ }),
           new MaxFileSizeValidator({ maxSize: 5 * 1024 ** 2 }),
         ],
       }),

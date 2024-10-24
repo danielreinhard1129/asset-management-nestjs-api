@@ -7,7 +7,7 @@ export class InfoService {
 
   async getTotalResources() {
     const [totalAsset, totalUser, totalBast] = await Promise.all([
-      this.prisma.asset.count(),
+      this.prisma.asset.count({ where: { deletedAt: null } }),
       this.prisma.user.count(),
       this.prisma.bast.count(),
     ]);

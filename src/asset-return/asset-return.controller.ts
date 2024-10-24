@@ -32,6 +32,13 @@ export class AssetReturnController {
   }
 
   @UseGuards(AuthGuard, RolesGuard)
+  @Roles('USER', 'ADMIN', 'HR')
+  @Get('/:id')
+  async getAssetReturn(@Param('id') id: number) {
+    return this.assetReturnService.getAssetReturn(id);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles('USER')
   @Post('/')
   async createAssetReturned(

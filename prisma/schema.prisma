@@ -119,6 +119,7 @@ enum Type {
   CREATE
   UPDATE
   OTHER
+  // TODO: ADD CHECKIN IF POSSIBLE
 }
 
 model Bast {

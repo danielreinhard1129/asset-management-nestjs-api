@@ -1,8 +1,7 @@
-import { Status } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   IsDateString,
-  IsEnum,
+  IsDecimal,
   IsNotEmpty,
   IsNumber,
   IsString,
@@ -15,10 +14,6 @@ export class CreateAssetDTO {
 
   @IsNotEmpty()
   @IsString()
-  readonly tag: string;
-
-  @IsNotEmpty()
-  @IsString()
   readonly serial: string;
 
   @IsNotEmpty()
@@ -26,13 +21,9 @@ export class CreateAssetDTO {
   readonly purchaseDate: Date;
 
   @IsNotEmpty()
-  @IsNumber()
-  @Type(() => Number) // Transform to number
-  readonly purchasePrice: number;
-
-  @IsNotEmpty()
-  @IsEnum(Status)
-  readonly status: Status;
+  @IsString()
+  @IsDecimal()
+  readonly purchasePrice: string;
 
   @IsNotEmpty()
   @IsNumber()

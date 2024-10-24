@@ -7,6 +7,8 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAssetDTO } from './dto/create-asset.dto';
 import { GetAssetsDTO } from './dto/get-assets.dto';
 import { UpdateAssetDTO } from './dto/update-asset.dto';
+import { Decimal } from '@prisma/client/runtime/library';
+import { customAlphabet } from 'nanoid';
 
 @Injectable()
 export class AssetService {
@@ -79,20 +81,20 @@ export class AssetService {
     });
   }
 
+  private generateAssetTag() {
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // Define your custom alphabet
+    return customAlphabet(alphabet, 7)();
+  }
+
   async createAsset(
     user: PayloadToken,
     createAssetDto: CreateAssetDTO,
     assetPhoto: Express.Multer.File,
   ) {
-    const {
-      name,
-      tag,
-      serial,
-      categoryId,
-      purchaseDate,
-      purchasePrice,
-      status,
-    } = createAssetDto;
+    const { name, serial, categoryId, purchaseDate, purchasePrice } =
+      createAssetDto;
+
+    const tag = this.generateAssetTag();
 
     await Promise.all([
       this.prisma.asset.findFirst({ where: { tag } }),
@@ -119,11 +121,10 @@ export class AssetService {
           name,
           image: secure_url,
           purchaseDate,
-          purchasePrice,
+          purchasePrice: new Decimal(purchasePrice),
           serial,
           tag,
           categoryId,
-          status,
         },
       });
 
@@ -181,15 +182,26 @@ export class AssetService {
   }
 
   async deleteAsset(id: number) {
-    const { image } = await this.prisma.asset.findFirstOrThrow({
+    const { image, userId } = await this.prisma.asset.findFirstOrThrow({
       where: { id },
     });
 
-    await this.cloudinaryService.deleteFile(image);
+    if (userId) {
+      throw new UnprocessableEntityException('Cannot delete in use asset');
+    }
+
+    this.cloudinaryService.deleteFile(image);
 
     await this.prisma.asset.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: {
+        deletedAt: new Date(),
+        serial: `deleted:${id}`,
+        tag: `deleted:${id}`,
+        userId: null,
+        image: 'deleted',
+        status: 'RETIRED',
+      },
     });
   }
 }

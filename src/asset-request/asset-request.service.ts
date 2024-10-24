@@ -220,14 +220,6 @@ export class AssetRequestService {
       include: { bast: true },
     });
 
-    // const canReject =
-    //   (user.role === 'HR' && !bast.hrId && status === 'PENDING') ||
-    //   (user.role === 'ADMIN' && bast.hrId && !bast.adminId);
-
-    // if (!canReject) {
-    //   throw new UnprocessableEntityException('Cannot reject asset request');
-    // }
-
     if (bast.adminId) {
       throw new UnprocessableEntityException(
         'Cannot reject asset request after assign',
