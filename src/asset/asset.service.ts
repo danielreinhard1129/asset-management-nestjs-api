@@ -1,5 +1,7 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { Decimal } from '@prisma/client/runtime/library';
+import { customAlphabet } from 'nanoid';
 import { PayloadToken } from 'src/auth/types';
 import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { PaginationService } from 'src/pagination/pagination.service';
@@ -7,8 +9,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { CreateAssetDTO } from './dto/create-asset.dto';
 import { GetAssetsDTO } from './dto/get-assets.dto';
 import { UpdateAssetDTO } from './dto/update-asset.dto';
-import { Decimal } from '@prisma/client/runtime/library';
-import { customAlphabet } from 'nanoid';
 
 @Injectable()
 export class AssetService {
@@ -73,7 +73,7 @@ export class AssetService {
 
   async getAsset(id: number) {
     return await this.prisma.asset.findFirstOrThrow({
-      where: { id },
+      where: { id, deletedAt: null },
       include: {
         category: { select: { name: true } },
         user: { select: { firstName: true, lastName: true } },
@@ -146,9 +146,10 @@ export class AssetService {
     user: PayloadToken,
     assetPhoto?: Express.Multer.File,
   ) {
-    const { image } = await this.prisma.asset.findFirstOrThrow({
-      where: { id },
-    });
+    const { image, status: currentStatus } =
+      await this.prisma.asset.findFirstOrThrow({
+        where: { id },
+      });
 
     let updatedData: Prisma.AssetUpdateInput = updateAssetDto;
 
@@ -161,6 +162,23 @@ export class AssetService {
         await this.cloudinaryService.uploadFile(assetPhoto);
 
       updatedData = { ...updateAssetDto, image: secure_url };
+    }
+
+    if (updatedData.status) {
+      if (currentStatus === 'IN_PROGRESS' || currentStatus === 'IN_USE') {
+        throw new UnprocessableEntityException(
+          'Cannot update status that is still IN_USE or IN_PROGRESS.',
+        );
+      }
+
+      if (
+        updatedData.status === 'IN_PROGRESS' ||
+        updatedData.status === 'IN_USE'
+      ) {
+        throw new UnprocessableEntityException(
+          'Cannot update status to IN_USE or IN_PROGRESS.',
+        );
+      }
     }
 
     return this.prisma.$transaction(async (tx) => {
