@@ -1,10 +1,13 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Patch, Post, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { Roles } from './decorator/role.decorator';
+import { User } from './decorator/user.decorator';
+import { ChangePasswordDTO } from './dto/change-password.dto';
 import { LoginDTO } from './dto/login.dto';
 import { RegisterDTO } from './dto/register.dto';
-// import { AuthGuard } from './guard/auth.guard';
-// import { RolesGuard } from './guard/role.guard';
-// import { Roles } from './decorator/role.decorator';
+import { AuthGuard } from './guard/auth.guard';
+import { RolesGuard } from './guard/role.guard';
+import { PayloadToken } from './types';
 
 @Controller('auth')
 export class AuthController {
@@ -20,5 +23,15 @@ export class AuthController {
   @Post('register')
   async register(@Body() registerDto: RegisterDTO) {
     return this.authService.register(registerDto);
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('USER')
+  @Patch('change-password')
+  async changePassword(
+    @User() user: PayloadToken,
+    @Body() dto: ChangePasswordDTO,
+  ) {
+    return this.authService.changePassword(dto, Number(user.id));
   }
 }

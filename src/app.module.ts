@@ -13,6 +13,7 @@ import { AssetHistoryModule } from './asset-history/asset-history.module';
 import { BastModule } from './bast/bast.module';
 import { AssetReturnModule } from './asset-return/asset-return.module';
 import { MailModule } from './mail/mail.module';
+import { AccountModule } from './account/account.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { MailModule } from './mail/mail.module';
     BastModule,
     AssetReturnModule,
     MailModule,
+    AccountModule,
   ],
 })
 export class AppModule {}

@@ -14,7 +14,7 @@ export class DepartmentService {
   ) {}
 
   async getDepartments(query: GetDepartmentsDTO) {
-    const { page, take, sortBy, sortOrder, search, address } = query;
+    const { page, take, sortBy, sortOrder, search, address, all } = query;
 
     const whereClause: Prisma.DepartmentWhereInput = {
       deletedAt: null,
@@ -33,14 +33,22 @@ export class DepartmentService {
       };
     }
 
+    let paginationArgs: Prisma.DepartmentFindManyArgs = {};
+
+    if (!all) {
+      paginationArgs = {
+        skip: (page - 1) * take,
+        take,
+      };
+    }
+
     const [departments, count] = await this.prisma.$transaction([
       this.prisma.department.findMany({
         where: whereClause,
-        skip: (page - 1) * take,
-        take,
         orderBy: {
           [sortBy]: sortOrder,
         },
+        ...paginationArgs,
       }),
 
       this.prisma.department.count({ where: whereClause }),

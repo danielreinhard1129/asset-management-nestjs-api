@@ -82,7 +82,7 @@ export class AssetService {
   }
 
   private generateAssetTag() {
-    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'; // Define your custom alphabet
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     return customAlphabet(alphabet, 7)();
   }
 

@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
 import { PaginationModule } from 'src/pagination/pagination.module';
-import { CategoryController } from './category.controller';
-import { CategoryService } from './category.service';
+import { AccountController } from './account.controller';
+import { AccountService } from './account.service';
 
 @Module({
   imports: [PaginationModule, CloudinaryModule],
-  controllers: [CategoryController],
-  providers: [CategoryService],
+  controllers: [AccountController],
+  providers: [AccountService],
 })
-export class CategoryModule {}
+export class AccountModule {}
