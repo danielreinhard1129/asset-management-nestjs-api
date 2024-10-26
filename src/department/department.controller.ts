@@ -17,8 +17,8 @@ import { GetDepartmentsDTO } from './dto/get-departments.dto';
 import { CreateDepartmentDTO } from './dto/create-departments.dto';
 import { UpdateDepartmentDTO } from './dto/update-department.dto';
 
-@UseGuards(AuthGuard, RolesGuard)
-@Roles('ADMIN')
+// @UseGuards(AuthGuard, RolesGuard)
+// @Roles('ADMIN')
 @Controller('departments')
 export class DepartmentController {
   constructor(private readonly departmentService: DepartmentService) {}
