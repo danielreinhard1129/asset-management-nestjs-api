@@ -1,0 +1,45 @@
+name: CD
+on:
+  push: 
+    branches: [ main ]
+    
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    environment: main
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+    - name: Generate .env file
+      run: echo '${{ secrets.ENV }}' >> .env
+    - name: Build
+      run: |
+        npm install
+        npx prisma generate
+        npm run build
+    - name: Copy files
+      uses: appleboy/scp-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.PRIVATE_KEY }}
+        port: ${{ secrets.PORT }}
+        source: '.env, dist, package*.json, prisma, pm2.deploy.config.js'
+        target: ${{ secrets.APP_FOLDER }}
+    - name: Run app
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USERNAME }}
+        key: ${{ secrets.PRIVATE_KEY }}
+        port: ${{ secrets.PORT }}
+        script: |
+          export NVM_DIR=~/.nvm
+          source ~/.nvm/nvm.sh
+          cd ${{ secrets.APP_FOLDER }}
+          npm install
+          npx prisma generate
+          npx prisma migrate deploy
+          pm2 start pm2.deploy.config.js
+

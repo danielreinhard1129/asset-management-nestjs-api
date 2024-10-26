@@ -10,7 +10,12 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(helmet());
-  app.enableCors({ origin: [/http:\/\/localhost/] });
+  app.enableCors({
+    origin: [
+      /http:\/\/localhost/,
+      'https://asset-management.danielreinhard.my.id',
+    ],
+  });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
   app.useGlobalFilters(new PrismaExceptionFilter());
 
