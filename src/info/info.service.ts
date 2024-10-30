@@ -15,38 +15,14 @@ export class InfoService {
     return { totalAsset, totalUser, totalBast };
   }
 
-  // async getTotalAssetByStatus() {
-  //   const statuses = [
-  //     { name: 'AVAILABLE', color: 'green' },
-  //     { name: 'IN_PROGRESS', color: 'gray' },
-  //     { name: 'IN_USE', color: 'blue' },
-  //     { name: 'MAINTENANCE', color: 'orange' },
-  //     { name: 'RETIRED', color: 'yellow' },
-  //     { name: 'MISSING', color: 'violet' },
-  //     { name: 'BROKEN', color: 'red' },
-  //   ];
+  async getTotalPendingRequests() {
+    const [totalAssetRequest, totalAssetReturn] = await Promise.all([
+      this.prisma.assetRequest.count({ where: { status: 'PENDING' } }),
+      this.prisma.assetReturned.count({ where: { status: 'PENDING' } }),
+    ]);
 
-  //   const assetsByStatus = await this.prisma.asset.groupBy({
-  //     by: ['status'],
-  //     _count: {
-  //       status: true,
-  //     },
-  //   });
-
-  //   const assetStatusMap = assetsByStatus.reduce(
-  //     (acc, statusGroup) => {
-  //       acc[statusGroup.status] = statusGroup._count.status;
-  //       return acc;
-  //     },
-  //     {} as Record<string, number>,
-  //   );
-
-  //   return statuses.map(({ name, color }) => ({
-  //     name,
-  //     color,
-  //     value: assetStatusMap[name] || 0,
-  //   }));
-  // }
+    return { totalAssetRequest, totalAssetReturn };
+  }
 
   async getTotalAssetByStatus() {
     const statuses = [

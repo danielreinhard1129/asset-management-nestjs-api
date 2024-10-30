@@ -14,6 +14,7 @@ import { BastModule } from './bast/bast.module';
 import { AssetReturnModule } from './asset-return/asset-return.module';
 import { MailModule } from './mail/mail.module';
 import { AccountModule } from './account/account.module';
+import { NotificationModule } from './notification/notification.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AccountModule } from './account/account.module';
     AssetReturnModule,
     MailModule,
     AccountModule,
+    NotificationModule,
   ],
 })
 export class AppModule {}

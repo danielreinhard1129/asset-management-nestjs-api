@@ -160,6 +160,14 @@ export class AssetReturnService {
         data: { hrId },
       });
 
+      await tx.notification.create({
+        data: {
+          title: 'Asset Return Approved by HR',
+          description: 'Your asset return request has been approved by HR.',
+          userId: assetReturn.userId,
+        },
+      });
+
       return await tx.assetReturned.update({
         where: { id },
         data: { status: 'IN_PROGRESS' },
@@ -183,70 +191,151 @@ export class AssetReturnService {
     return { message: 'Approve asset return success' };
   }
 
+  // async doneAssetReturn(id: number, adminId: number) {
+  //   const assetReturn = await this.prisma.assetReturned.findFirstOrThrow({
+  //     where: { id },
+  //     include: { bast: { include: { bastItems: true } } },
+  //   });
+
+  //   const { bastId, bast, status } = assetReturn;
+
+  //   const transactionActions = [];
+
+  //   if (status === 'PENDING') {
+  //     throw new UnprocessableEntityException(
+  //       'Cannot proceed before HR approve',
+  //     );
+  //   }
+
+  //   if (bast.isCheckedByAdmin || ['DONE', 'REJECT'].includes(status)) {
+  //     throw new UnprocessableEntityException('Asset return already finished');
+  //   }
+
+  //   const assetIds = bast.bastItems.map((item) => item.assetId);
+
+  //   const assetHistories = assetIds.map((assetId) => ({
+  //     adminId,
+  //     assetId,
+  //     type: Type.UPDATE,
+  //   }));
+
+  //   transactionActions.push(
+  //     this.prisma.bast.update({
+  //       where: { id: bastId },
+  //       data: { isCheckedByAdmin: true, adminId },
+  //     }),
+  //     this.prisma.assetReturned.update({
+  //       where: { id },
+  //       data: { status: 'DONE' },
+  //     }),
+  //     this.prisma.asset.updateMany({
+  //       where: { id: { in: assetIds } },
+  //       data: { status: 'AVAILABLE', userId: null },
+  //     }),
+  //     this.prisma.assetHistory.createMany({
+  //       data: assetHistories,
+  //     }),
+  //     this.prisma.notification.create({
+  //       data: {
+  //         title: 'Asset Return Marked as Done by Admin',
+  //         description:
+  //           'Your asset return has been marked as done by the admin.',
+  //         userId: assetReturn.userId,
+  //       },
+  //     }),
+  //   );
+
+  //   await this.prisma.$transaction(transactionActions);
+
+  //   return { message: 'Asset return done' };
+  // }
+
   async doneAssetReturn(id: number, adminId: number) {
-    const assetReturn = await this.prisma.assetReturned.findFirstOrThrow({
-      where: { id },
-      include: { bast: { include: { bastItems: true } } },
-    });
-
-    const { bastId, bast, status } = assetReturn;
-
-    const transactionActions = [];
-
-    if (status === 'PENDING') {
-      throw new UnprocessableEntityException(
-        'Cannot proceed before HR approve',
-      );
-    }
-
-    if (bast.isCheckedByAdmin || ['DONE', 'REJECT'].includes(status)) {
-      throw new UnprocessableEntityException('Asset return already finished');
-    }
-
-    const assetIds = bast.bastItems.map((item) => item.assetId);
-
-    const assetHistories = assetIds.map((assetId) => ({
-      adminId,
-      assetId,
-      type: Type.UPDATE,
-    }));
-
-    transactionActions.push(
-      this.prisma.bast.update({
-        where: { id: bastId },
-        data: { isCheckedByAdmin: true, adminId },
-      }),
-      this.prisma.assetReturned.update({
+    await this.prisma.$transaction(async (tx) => {
+      const assetReturn = await tx.assetReturned.findFirstOrThrow({
         where: { id },
-        data: { status: 'DONE' },
-      }),
-      this.prisma.asset.updateMany({
-        where: { id: { in: assetIds } },
-        data: { status: 'AVAILABLE', userId: null },
-      }),
-      this.prisma.assetHistory.createMany({
-        data: assetHistories,
-      }),
-    );
+        include: { bast: { include: { bastItems: true } } },
+      });
 
-    await this.prisma.$transaction(transactionActions);
+      const { bastId, bast, status } = assetReturn;
 
-    return { message: 'Asset return done' };
+      const transactionActions = [];
+
+      if (status === 'PENDING') {
+        throw new UnprocessableEntityException(
+          'Cannot proceed before HR approves',
+        );
+      }
+
+      if (bast.isCheckedByAdmin || ['DONE', 'REJECT'].includes(status)) {
+        throw new UnprocessableEntityException('Asset return already finished');
+      }
+
+      const assetIds = bast.bastItems.map((item) => item.assetId);
+
+      const assetHistories = assetIds.map((assetId) => ({
+        adminId,
+        assetId,
+        type: Type.UPDATE,
+      }));
+
+      transactionActions.push(
+        tx.bast.update({
+          where: { id: bastId },
+          data: { isCheckedByAdmin: true, adminId },
+        }),
+        tx.assetReturned.update({
+          where: { id },
+          data: { status: 'DONE' },
+        }),
+        tx.asset.updateMany({
+          where: { id: { in: assetIds } },
+          data: { status: 'AVAILABLE', userId: null },
+        }),
+        tx.assetHistory.createMany({
+          data: assetHistories,
+        }),
+        tx.notification.create({
+          data: {
+            title: 'Asset Return Marked as Done by Admin',
+            description:
+              'Your asset return has been marked as done by the admin.',
+            userId: assetReturn.userId,
+          },
+        }),
+      );
+
+      await Promise.all(transactionActions);
+
+      return { message: 'Asset return done' };
+    });
   }
 
   async rejectAssetReturn(id: number) {
-    const { status } = await this.prisma.assetReturned.findFirstOrThrow({
-      where: { id },
-      include: { bast: true },
-    });
+    const { status, userId } = await this.prisma.assetReturned.findFirstOrThrow(
+      {
+        where: { id },
+        include: { bast: true },
+      },
+    );
 
     if (['DONE', 'REJECT'].includes(status)) {
       throw new UnprocessableEntityException('Asset return already finished');
     }
 
-    return await this.prisma.assetReturned.update({
-      where: { id },
-      data: { status: 'REJECT' },
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.notification.create({
+        data: {
+          title: 'Asset Return Rejected',
+          description: 'Your asset return request has been rejected.',
+          userId,
+        },
+      });
+
+      return await tx.assetReturned.update({
+        where: { id },
+        data: { status: 'REJECT' },
+      });
     });
   }
 }

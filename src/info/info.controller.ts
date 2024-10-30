@@ -11,8 +11,15 @@ export class InfoController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles('ADMIN', 'HR')
   @Get('/resources')
-  async getAssets() {
+  async getTotalResources() {
     return this.infoService.getTotalResources();
+  }
+
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles('ADMIN', 'HR')
+  @Get('/pending-requests')
+  async getTotalPendingRequests() {
+    return this.infoService.getTotalPendingRequests();
   }
 
   @Get('/asset-by-status')

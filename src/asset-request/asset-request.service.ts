@@ -138,6 +138,14 @@ export class AssetRequestService {
         data: { hrId },
       });
 
+      await tx.notification.create({
+        data: {
+          title: 'Asset Request Approve by HR',
+          description: `Your asset request ${assetRequest.bast.bastNo} has been approved by HR.`,
+          userId: assetRequest.userId,
+        },
+      });
+
       return await tx.assetRequest.update({
         where: { id },
         data: { status: 'IN_PROGRESS' },
@@ -146,7 +154,7 @@ export class AssetRequestService {
   }
 
   async assignAsset(dto: AssignAssetDTO, adminId: number) {
-    const { bastId, bast, user } =
+    const { bastId, bast, user, userId } =
       await this.prisma.assetRequest.findFirstOrThrow({
         where: { id: dto.assetRequestId },
         include: {
@@ -189,6 +197,14 @@ export class AssetRequestService {
       await tx.bastItem.createMany({
         data: bastItemsWithId,
       });
+
+      await tx.notification.create({
+        data: {
+          title: 'Asset Request Assigned by Admin',
+          description: `Your asset request ${bast.bastNo} has been assigned by the admin.`,
+          userId,
+        },
+      });
     });
 
     const assets = await this.prisma.asset.findMany({
@@ -215,10 +231,11 @@ export class AssetRequestService {
   }
 
   async rejectAssetRequest(id: number) {
-    const { bast, status } = await this.prisma.assetRequest.findFirstOrThrow({
-      where: { id },
-      include: { bast: true },
-    });
+    const { bast, status, userId } =
+      await this.prisma.assetRequest.findFirstOrThrow({
+        where: { id },
+        include: { bast: true },
+      });
 
     if (bast.adminId) {
       throw new UnprocessableEntityException(
@@ -230,79 +247,180 @@ export class AssetRequestService {
       throw new UnprocessableEntityException('Asset request already finished');
     }
 
-    return await this.prisma.assetRequest.update({
-      where: { id },
-      data: { status: 'REJECT' },
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.notification.create({
+        data: {
+          title: 'Asset Request Rejected',
+          description: `Your asset request ${bast.bastNo} has been rejected`,
+          userId,
+        },
+      });
+      return await tx.assetRequest.update({
+        where: { id },
+        data: { status: 'REJECT' },
+      });
     });
   }
 
+  // async doneAssetRequest(id: number, user: PayloadToken) {
+  //   const assetRequest = await this.prisma.assetRequest.findFirstOrThrow({
+  //     where: { id },
+  //     include: { bast: { include: { bastItems: true } } },
+  //   });
+
+  //   const { bastId, bast, status, userId } = assetRequest;
+
+  //   const transactionActions = [];
+
+  //   if (user.role === 'USER') {
+  //     if (bast.isCheckedByUser || status === 'CLAIMED') {
+  //       throw new UnprocessableEntityException('Asset Request already claimed');
+  //     }
+
+  //     transactionActions.push(
+  //       this.prisma.bast.update({
+  //         where: { id: bastId },
+  //         data: { isCheckedByUser: true },
+  //       }),
+  //       this.prisma.assetRequest.update({
+  //         where: { id },
+  //         data: { status: 'CLAIMED' },
+  //       }),
+  //     );
+  //   } else {
+  //     if (!bast.isCheckedByUser) {
+  //       throw new UnprocessableEntityException(
+  //         'Cannot proceed before user claimed the asset',
+  //       );
+  //     }
+  //     if (bast.isCheckedByAdmin || status === 'APPROVE') {
+  //       throw new UnprocessableEntityException('Asset Request already done');
+  //     }
+
+  //     const assetIds = bast.bastItems.map((item) => item.assetId);
+  //     const assetHistories = assetIds.map((assetId) => ({
+  //       userId,
+  //       adminId: user.id,
+  //       assetId,
+  //       type: Type.CHECKOUT,
+  //     }));
+
+  //     transactionActions.push(
+  //       this.prisma.bast.update({
+  //         where: { id: bastId },
+  //         data: { isCheckedByAdmin: true },
+  //       }),
+  //       this.prisma.assetRequest.update({
+  //         where: { id },
+  //         data: { status: 'APPROVE' },
+  //       }),
+  //       this.prisma.asset.updateMany({
+  //         where: { id: { in: assetIds } },
+  //         data: { status: 'IN_USE', userId },
+  //       }),
+  //       this.prisma.assetHistory.createMany({
+  //         data: assetHistories,
+  //       }),
+  //       this.prisma.notification.create({
+  //         data: {
+  //           title: 'Asset Request Marked as Done by Admin',
+  //           description:
+  //             'Your asset request has been marked as done by the admin.',
+  //           userId,
+  //         },
+  //       }),
+  //     );
+  //   }
+
+  //   await this.prisma.$transaction(transactionActions);
+
+  //   const message =
+  //     user.role === 'ADMIN' ? 'Asset request finished' : 'Claim asset success';
+
+  //   return { message };
+  // }
+
   async doneAssetRequest(id: number, user: PayloadToken) {
-    const assetRequest = await this.prisma.assetRequest.findFirstOrThrow({
-      where: { id },
-      include: { bast: { include: { bastItems: true } } },
-    });
+    await this.prisma.$transaction(async (tx) => {
+      const assetRequest = await tx.assetRequest.findFirstOrThrow({
+        where: { id },
+        include: { bast: { include: { bastItems: true } } },
+      });
 
-    const { bastId, bast, status, userId } = assetRequest;
+      const { bastId, bast, status, userId } = assetRequest;
 
-    const transactionActions = [];
+      const transactionActions = [];
 
-    if (user.role === 'USER') {
-      if (bast.isCheckedByUser || status === 'CLAIMED') {
-        throw new UnprocessableEntityException('Asset Request already claimed');
-      }
+      if (user.role === 'USER') {
+        if (bast.isCheckedByUser || status === 'CLAIMED') {
+          throw new UnprocessableEntityException(
+            'Asset Request already claimed',
+          );
+        }
 
-      transactionActions.push(
-        this.prisma.bast.update({
-          where: { id: bastId },
-          data: { isCheckedByUser: true },
-        }),
-        this.prisma.assetRequest.update({
-          where: { id },
-          data: { status: 'CLAIMED' },
-        }),
-      );
-    } else {
-      if (!bast.isCheckedByUser) {
-        throw new UnprocessableEntityException(
-          'Cannot proceed before user claimed the asset',
+        transactionActions.push(
+          tx.bast.update({
+            where: { id: bastId },
+            data: { isCheckedByUser: true },
+          }),
+          tx.assetRequest.update({
+            where: { id },
+            data: { status: 'CLAIMED' },
+          }),
+        );
+      } else {
+        if (!bast.isCheckedByUser) {
+          throw new UnprocessableEntityException(
+            'Cannot proceed before user claimed the asset',
+          );
+        }
+        if (bast.isCheckedByAdmin || status === 'APPROVE') {
+          throw new UnprocessableEntityException('Asset Request already done');
+        }
+
+        const assetIds = bast.bastItems.map((item) => item.assetId);
+        const assetHistories = assetIds.map((assetId) => ({
+          userId,
+          adminId: user.id,
+          assetId,
+          type: Type.CHECKOUT,
+        }));
+
+        transactionActions.push(
+          tx.bast.update({
+            where: { id: bastId },
+            data: { isCheckedByAdmin: true },
+          }),
+          tx.assetRequest.update({
+            where: { id },
+            data: { status: 'APPROVE' },
+          }),
+          tx.asset.updateMany({
+            where: { id: { in: assetIds } },
+            data: { status: 'IN_USE', userId },
+          }),
+          tx.assetHistory.createMany({
+            data: assetHistories,
+          }),
+          tx.notification.create({
+            data: {
+              title: 'Asset Request Marked as Done by Admin',
+              description:
+                'Your asset request has been marked as done by the admin.',
+              userId,
+            },
+          }),
         );
       }
-      if (bast.isCheckedByAdmin || status === 'APPROVE') {
-        throw new UnprocessableEntityException('Asset Request already done');
-      }
 
-      const assetIds = bast.bastItems.map((item) => item.assetId);
-      const assetHistories = assetIds.map((assetId) => ({
-        userId,
-        adminId: user.id,
-        assetId,
-        type: Type.CHECKOUT,
-      }));
+      await Promise.all(transactionActions);
 
-      transactionActions.push(
-        this.prisma.bast.update({
-          where: { id: bastId },
-          data: { isCheckedByAdmin: true },
-        }),
-        this.prisma.assetRequest.update({
-          where: { id },
-          data: { status: 'APPROVE' },
-        }),
-        this.prisma.asset.updateMany({
-          where: { id: { in: assetIds } },
-          data: { status: 'IN_USE', userId },
-        }),
-        this.prisma.assetHistory.createMany({
-          data: assetHistories,
-        }),
-      );
-    }
+      const message =
+        user.role === 'ADMIN'
+          ? 'Asset request finished'
+          : 'Claim asset success';
 
-    await this.prisma.$transaction(transactionActions);
-
-    const message =
-      user.role === 'ADMIN' ? 'Asset request finished' : 'Claim asset success';
-
-    return { message };
+      return { message };
+    });
   }
 }

@@ -28,6 +28,7 @@ model User {
   assetReturned AssetReturned[]
   assets        Asset[]
   assetRequests AssetRequest[]
+  notifications Notification[]
 
   @@map("users")
 }
@@ -220,4 +221,16 @@ enum StatusAssetReturned {
   APPROVE // TODO: remove status approve
   REJECT
   DONE
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String
+  userId      Int
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
