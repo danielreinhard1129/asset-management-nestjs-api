@@ -13,7 +13,7 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       /http:\/\/localhost/,
-      'https://asset-management.danielreinhard.my.id',
+      'https://web-asset-management.danielreinhard.my.id',
     ],
   });
   app.useGlobalPipes(new ValidationPipe({ transform: true }));
