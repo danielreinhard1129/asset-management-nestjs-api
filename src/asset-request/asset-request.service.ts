@@ -43,7 +43,7 @@ export class AssetRequestService {
           [sortBy]: sortOrder,
         },
         include: {
-          bast: true,
+          bast: { include: { bastItems: { include: { asset: true } } } },
           user: { select: { id: true, firstName: true, lastName: true } },
           assetRequestItems: { include: { category: true } },
         },
@@ -262,84 +262,6 @@ export class AssetRequestService {
     });
   }
 
-  // async doneAssetRequest(id: number, user: PayloadToken) {
-  //   const assetRequest = await this.prisma.assetRequest.findFirstOrThrow({
-  //     where: { id },
-  //     include: { bast: { include: { bastItems: true } } },
-  //   });
-
-  //   const { bastId, bast, status, userId } = assetRequest;
-
-  //   const transactionActions = [];
-
-  //   if (user.role === 'USER') {
-  //     if (bast.isCheckedByUser || status === 'CLAIMED') {
-  //       throw new UnprocessableEntityException('Asset Request already claimed');
-  //     }
-
-  //     transactionActions.push(
-  //       this.prisma.bast.update({
-  //         where: { id: bastId },
-  //         data: { isCheckedByUser: true },
-  //       }),
-  //       this.prisma.assetRequest.update({
-  //         where: { id },
-  //         data: { status: 'CLAIMED' },
-  //       }),
-  //     );
-  //   } else {
-  //     if (!bast.isCheckedByUser) {
-  //       throw new UnprocessableEntityException(
-  //         'Cannot proceed before user claimed the asset',
-  //       );
-  //     }
-  //     if (bast.isCheckedByAdmin || status === 'APPROVE') {
-  //       throw new UnprocessableEntityException('Asset Request already done');
-  //     }
-
-  //     const assetIds = bast.bastItems.map((item) => item.assetId);
-  //     const assetHistories = assetIds.map((assetId) => ({
-  //       userId,
-  //       adminId: user.id,
-  //       assetId,
-  //       type: Type.CHECKOUT,
-  //     }));
-
-  //     transactionActions.push(
-  //       this.prisma.bast.update({
-  //         where: { id: bastId },
-  //         data: { isCheckedByAdmin: true },
-  //       }),
-  //       this.prisma.assetRequest.update({
-  //         where: { id },
-  //         data: { status: 'APPROVE' },
-  //       }),
-  //       this.prisma.asset.updateMany({
-  //         where: { id: { in: assetIds } },
-  //         data: { status: 'IN_USE', userId },
-  //       }),
-  //       this.prisma.assetHistory.createMany({
-  //         data: assetHistories,
-  //       }),
-  //       this.prisma.notification.create({
-  //         data: {
-  //           title: 'Asset Request Marked as Done by Admin',
-  //           description:
-  //             'Your asset request has been marked as done by the admin.',
-  //           userId,
-  //         },
-  //       }),
-  //     );
-  //   }
-
-  //   await this.prisma.$transaction(transactionActions);
-
-  //   const message =
-  //     user.role === 'ADMIN' ? 'Asset request finished' : 'Claim asset success';
-
-  //   return { message };
-  // }
-
   async doneAssetRequest(id: number, user: PayloadToken) {
     await this.prisma.$transaction(async (tx) => {
       const assetRequest = await tx.assetRequest.findFirstOrThrow({
@@ -405,8 +327,7 @@ export class AssetRequestService {
           tx.notification.create({
             data: {
               title: 'Asset Request Marked as Done by Admin',
-              description:
-                'Your asset request has been marked as done by the admin.',
+              description: `Your asset request ${bast.bastNo} has been marked as done by the admin.`,
               userId,
             },
           }),

@@ -44,7 +44,7 @@ export class AssetReturnService {
           [sortBy]: sortOrder,
         },
         include: {
-          bast: { include: { bastItems: true } },
+          bast: { include: { bastItems: { include: { asset: true } } } },
           user: { select: { id: true, firstName: true, lastName: true } },
         },
       }),
@@ -163,7 +163,7 @@ export class AssetReturnService {
       await tx.notification.create({
         data: {
           title: 'Asset Return Approved by HR',
-          description: 'Your asset return request has been approved by HR.',
+          description: `Your asset return request ${assetReturn.bast.bastNo} has been approved by HR.`,
           userId: assetReturn.userId,
         },
       });
@@ -190,65 +190,6 @@ export class AssetReturnService {
 
     return { message: 'Approve asset return success' };
   }
-
-  // async doneAssetReturn(id: number, adminId: number) {
-  //   const assetReturn = await this.prisma.assetReturned.findFirstOrThrow({
-  //     where: { id },
-  //     include: { bast: { include: { bastItems: true } } },
-  //   });
-
-  //   const { bastId, bast, status } = assetReturn;
-
-  //   const transactionActions = [];
-
-  //   if (status === 'PENDING') {
-  //     throw new UnprocessableEntityException(
-  //       'Cannot proceed before HR approve',
-  //     );
-  //   }
-
-  //   if (bast.isCheckedByAdmin || ['DONE', 'REJECT'].includes(status)) {
-  //     throw new UnprocessableEntityException('Asset return already finished');
-  //   }
-
-  //   const assetIds = bast.bastItems.map((item) => item.assetId);
-
-  //   const assetHistories = assetIds.map((assetId) => ({
-  //     adminId,
-  //     assetId,
-  //     type: Type.UPDATE,
-  //   }));
-
-  //   transactionActions.push(
-  //     this.prisma.bast.update({
-  //       where: { id: bastId },
-  //       data: { isCheckedByAdmin: true, adminId },
-  //     }),
-  //     this.prisma.assetReturned.update({
-  //       where: { id },
-  //       data: { status: 'DONE' },
-  //     }),
-  //     this.prisma.asset.updateMany({
-  //       where: { id: { in: assetIds } },
-  //       data: { status: 'AVAILABLE', userId: null },
-  //     }),
-  //     this.prisma.assetHistory.createMany({
-  //       data: assetHistories,
-  //     }),
-  //     this.prisma.notification.create({
-  //       data: {
-  //         title: 'Asset Return Marked as Done by Admin',
-  //         description:
-  //           'Your asset return has been marked as done by the admin.',
-  //         userId: assetReturn.userId,
-  //       },
-  //     }),
-  //   );
-
-  //   await this.prisma.$transaction(transactionActions);
-
-  //   return { message: 'Asset return done' };
-  // }
 
   async doneAssetReturn(id: number, adminId: number) {
     await this.prisma.$transaction(async (tx) => {
@@ -298,8 +239,7 @@ export class AssetReturnService {
         tx.notification.create({
           data: {
             title: 'Asset Return Marked as Done by Admin',
-            description:
-              'Your asset return has been marked as done by the admin.',
+            description: `Your asset return ${bast.bastNo} has been marked as done by the admin.`,
             userId: assetReturn.userId,
           },
         }),
@@ -312,12 +252,11 @@ export class AssetReturnService {
   }
 
   async rejectAssetReturn(id: number) {
-    const { status, userId } = await this.prisma.assetReturned.findFirstOrThrow(
-      {
+    const { status, userId, bast } =
+      await this.prisma.assetReturned.findFirstOrThrow({
         where: { id },
         include: { bast: true },
-      },
-    );
+      });
 
     if (['DONE', 'REJECT'].includes(status)) {
       throw new UnprocessableEntityException('Asset return already finished');
@@ -327,7 +266,7 @@ export class AssetReturnService {
       await tx.notification.create({
         data: {
           title: 'Asset Return Rejected',
-          description: 'Your asset return request has been rejected.',
+          description: `Your asset return request ${bast.bastNo} has been rejected.`,
           userId,
         },
       });
